@@ -120,6 +120,9 @@ for (const e of events) {
     failed++
     console.error('失敗', eventId, layout, String(err))
     await sb.from('moments').delete().eq('id', momentId)
+    // 已經傳上去的檔案也清掉,下次重跑才不會留垃圾
+    const { data: leftovers } = await sb.storage.from(BUCKET).list(`${albumId}/${momentId}`)
+    if (leftovers?.length) await sb.storage.from(BUCKET).remove(leftovers.map((f) => `${albumId}/${momentId}/${f.name}`))
   }
 }
 console.log(`完成:搬了 ${imported}、跳過 ${skipped}、失敗 ${failed}`)
