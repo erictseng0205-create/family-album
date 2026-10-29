@@ -46,7 +46,7 @@ export default async function Settings() {
                 <option value="family">家人</option>
                 <option value="admin">管理員</option>
               </select>
-              <button className="px-3 py-2 rounded-xl bg-brand text-white text-sm">產生</button>
+              <button className="px-3 py-2 rounded-xl bg-brand text-white text-sm whitespace-nowrap">產生</button>
             </form>
             <p className="text-xs text-muted mb-2">家人只看得到小孩的相簿;管理員什麼都看得到。連結 7 天內有效,同一個人可以在手機和平板各開一次。</p>
             <ul className="space-y-2">

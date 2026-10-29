@@ -57,16 +57,26 @@ function heicToJpeg(file) {
   return out
 }
 
+// 幾個一起跑,但最多同時 n 個
+async function runLimited(tasks, n) {
+  let i = 0
+  const errors = []
+  await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, async () => {
+    while (i < tasks.length) { const t = tasks[i++]; try { await t() } catch (err) { errors.push(err) } }
+  }))
+  if (errors.length) throw errors[0]
+}
+
 let imported = 0, skipped = 0, failed = 0
 const events = [...data.events].sort((a, b) => a[2] - b[2])
-for (const e of events) {
+async function importEvent(e) {
   const [eventId, babyId, takenAt, layout, caption, media, comments] = e
-  if (done.has(eventId)) { skipped++; continue }
+  if (done.has(eventId)) { skipped++; return }
   const baby = data.babies[String(babyId)]
   const files = media.filter((m) => m[2] >= 0 && m[3])
   const texts = media.filter((m) => m[9]).map((m) => m[9])
   const fullCaption = [caption, ...texts].filter(Boolean).join('\n').trim()
-  if (files.length === 0 && !fullCaption) { skipped++; continue }   // 自動產生的空里程碑
+  if (files.length === 0 && !fullCaption) { skipped++; return }   // 自動產生的空里程碑
 
   const momentId = randomUUID()
   const albumId = albumByBaby[babyId]
@@ -74,7 +84,7 @@ for (const e of events) {
   const authorName = REL[authorRel] ?? authorRel ?? null
   try {
     const rows = []
-    for (let i = 0; i < files.length; i++) {
+    const oneFile = async (i) => {
       const [id, type, , file, w, h, dur, mTaken] = files[i]
       const ext = (path.extname(file) || (type === 'v' ? '.mp4' : '.jpg')).toLowerCase()
       let local = path.join(dataDir, 'files', baby.name, eventId, id + ext)
@@ -96,12 +106,13 @@ for (const e of events) {
           hasThumb = true
         } catch (err) { console.warn('縮圖失敗', id, String(err)) }
       }
-      rows.push({
+      rows[i] = {
         moment_id: momentId, kind: type === 'v' ? 'video' : 'photo', storage_path: storagePath, thumb_path: hasThumb ? thumbPath : null,
         width: w || null, height: h || null, duration_sec: dur || null, bytes: buf.length,
         taken_at: mTaken ? new Date(mTaken * 1000).toISOString() : null, sort: i, source_id: id,
-      })
+      }
     }
+    await runLimited(files.map((_, i) => () => oneFile(i)), 4)
     const { error: e1 } = await sb.from('moments').insert({
       id: momentId, album_id: albumId, taken_on: taipeiDate(takenAt), caption: fullCaption, author_name: authorName,
       source: 'timehut', source_id: eventId, created_at: new Date(takenAt * 1000).toISOString(),
@@ -112,7 +123,7 @@ for (const e of events) {
       if (e2) throw new Error(e2.message)
     }
     if (comments.length) {
-      await sb.from('comments').insert(comments.map(([name, body, at]) => ({ moment_id: momentId, author_name: name, body: body || '', created_at: at })))
+      await sb.from('comments').insert(comments.map(([name, body, at]) => ({ moment_id: momentId, author_name: String(name || '').replace(/\(你\)$/, ''), body: body || '', created_at: at })))
     }
     imported++
     if (imported % 25 === 0) console.log(`已搬 ${imported}(跳過 ${skipped}、失敗 ${failed})`)
@@ -125,4 +136,5 @@ for (const e of events) {
     if (leftovers?.length) await sb.storage.from(BUCKET).remove(leftovers.map((f) => `${albumId}/${momentId}/${f.name}`))
   }
 }
+await runLimited(events.map((e) => () => importEvent(e)), 4)
 console.log(`完成:搬了 ${imported}、跳過 ${skipped}、失敗 ${failed}`)

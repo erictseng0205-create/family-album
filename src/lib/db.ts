@@ -67,7 +67,7 @@ export async function listMoments(albumIds: string[], cursor: Cursor): Promise<{
   const sb = createAdminClient()
   let q = sb
     .from('moments')
-    .select('id, album_id, taken_on, caption, author_name, created_at, members(name), media(id, kind, storage_path, thumb_path, width, height, duration_sec, sort), likes(count), comments(count)')
+    .select('id, album_id, taken_on, caption, author_name, created_at, members!moments_author_id_fkey(name), media(id, kind, storage_path, thumb_path, width, height, duration_sec, sort), likes(count), comments(count)')
     .in('album_id', albumIds)
     .order('taken_on', { ascending: false })
     .order('created_at', { ascending: false })
@@ -122,7 +122,7 @@ export async function getMoment(id: string, member: Member | null) {
   const sb = createAdminClient()
   const { data, error } = await sb
     .from('moments')
-    .select('id, album_id, taken_on, caption, author_id, author_name, created_at, members(name), albums(id, name, birthday, visibility), media(id, kind, storage_path, thumb_path, width, height, duration_sec, sort), likes(member_id, members(name)), comments(id, body, created_at, member_id, author_name, members(name))')
+    .select('id, album_id, taken_on, caption, author_id, author_name, created_at, members!moments_author_id_fkey(name), albums(id, name, birthday, visibility), media(id, kind, storage_path, thumb_path, width, height, duration_sec, sort), likes(member_id, members(name)), comments(id, body, created_at, member_id, author_name, members(name))')
     .eq('id', id)
     .maybeSingle()
   if (error) throw new Error(error.message)

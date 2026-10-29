@@ -12,7 +12,7 @@ export default async function Join({ params }: { params: Promise<{ token: string
   const sb = createAdminClient()
   const { data: inv } = await sb
     .from('invites')
-    .select('token, name, role, expires_at, member_id, members(revoked_at)')
+    .select('token, name, role, expires_at, member_id, members!invites_member_id_fkey(revoked_at)')
     .eq('token', token)
     .maybeSingle()
   const invite = inv as unknown as { token: string; name: string; role: string; expires_at: string; member_id: string | null; members: { revoked_at: string | null } | null } | null

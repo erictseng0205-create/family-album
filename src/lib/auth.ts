@@ -64,6 +64,7 @@ export async function createSession(memberId: string, userAgent?: string | null)
     user_agent: userAgent?.slice(0, 300) ?? null,
   })
   if (error) throw new Error(error.message)
+  await sb.from('members').update({ last_seen_at: new Date().toISOString() }).eq('id', memberId)
   ;(await cookies()).set(COOKIE, token, {
     httpOnly: true,
     sameSite: 'lax',
