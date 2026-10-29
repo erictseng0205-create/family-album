@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand: #ef8a6b;        /* 珊瑚橘 */
+  --color-brand-deep: #d9694a;
+  --color-brand-soft: #fdeae2;
+  --color-ink: #2a2622;
+  --color-muted: #8c847d;
+  --color-line: #efe6df;
+  --color-paper: #fffaf6;
+  --color-card: #ffffff;
+}
+
+html, body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+/* 橫向滑照片:一張一張停 */
+.snap-x-strip {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.snap-x-strip::-webkit-scrollbar { display: none; }
+.snap-x-strip > * { scroll-snap-align: center; flex: 0 0 100%; }
+
+.safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem); }
+.safe-top { padding-top: env(safe-area-inset-top); }
