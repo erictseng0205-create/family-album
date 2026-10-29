@@ -45,9 +45,15 @@ for (let i = 0; i < babies.length; i++) {
 const { data: doneRows } = await sb.from('moments').select('source_id').eq('source', 'timehut')
 const done = new Set((doneRows ?? []).map((r) => r.source_id))
 
+// 上傳:斷線就等一下再試,最多 5 次
 async function upload(storagePath, buf, contentType) {
-  const { error } = await sb.storage.from(BUCKET).upload(storagePath, buf, { contentType, upsert: true })
-  if (error) throw new Error(`${storagePath}: ${error.message}`)
+  for (let attempt = 1; ; attempt++) {
+    const { error } = await sb.storage.from(BUCKET).upload(storagePath, buf, { contentType, upsert: true })
+    if (!error) return
+    const transient = /fetch failed|ECONNRESET|ETIMEDOUT|socket|network|5\d\d/i.test(error.message)
+    if (!transient || attempt >= 5) throw new Error(`${storagePath}: ${error.message}`)
+    await new Promise((r) => setTimeout(r, 3000 * attempt))
+  }
 }
 
 // HEIC 瀏覽器不會顯示:用 Mac 內建的 sips 轉成 JPEG
@@ -112,7 +118,7 @@ async function importEvent(e) {
         taken_at: mTaken ? new Date(mTaken * 1000).toISOString() : null, sort: i, source_id: id,
       }
     }
-    await runLimited(files.map((_, i) => () => oneFile(i)), 4)
+    await runLimited(files.map((_, i) => () => oneFile(i)), 3)
     const { error: e1 } = await sb.from('moments').insert({
       id: momentId, album_id: albumId, taken_on: taipeiDate(takenAt), caption: fullCaption, author_name: authorName,
       source: 'timehut', source_id: eventId, created_at: new Date(takenAt * 1000).toISOString(),
@@ -136,5 +142,5 @@ async function importEvent(e) {
     if (leftovers?.length) await sb.storage.from(BUCKET).remove(leftovers.map((f) => `${albumId}/${momentId}/${f.name}`))
   }
 }
-await runLimited(events.map((e) => () => importEvent(e)), 4)
+await runLimited(events.map((e) => () => importEvent(e)), 2)
 console.log(`完成:搬了 ${imported}、跳過 ${skipped}、失敗 ${failed}`)
