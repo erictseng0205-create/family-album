@@ -16,7 +16,7 @@ export default async function Join({ params }: { params: Promise<{ token: string
     .eq('token', token)
     .maybeSingle()
   const invite = inv as unknown as { token: string; name: string; role: string; expires_at: string; member_id: string | null; members: { revoked_at: string | null } | null } | null
-  if (dbError) console.error('join: invites query failed', dbError.message)
+  if (dbError) console.error('join: invites query failed', dbError.code ?? 'unknown')
   const expired = !invite || new Date(invite.expires_at).getTime() < Date.now() || !!invite.members?.revoked_at
 
   const me = await getMember()
