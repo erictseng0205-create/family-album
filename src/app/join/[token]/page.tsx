@@ -10,12 +10,13 @@ export const dynamic = 'force-dynamic'
 export default async function Join({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   const sb = createAdminClient()
-  const { data: inv } = await sb
+  const { data: inv, error: dbError } = await sb
     .from('invites')
     .select('token, name, role, expires_at, member_id, members!invites_member_id_fkey(revoked_at)')
     .eq('token', token)
     .maybeSingle()
   const invite = inv as unknown as { token: string; name: string; role: string; expires_at: string; member_id: string | null; members: { revoked_at: string | null } | null } | null
+  if (dbError) console.error('join: invites query failed', dbError.message)
   const expired = !invite || new Date(invite.expires_at).getTime() < Date.now() || !!invite.members?.revoked_at
 
   const me = await getMember()
@@ -25,7 +26,9 @@ export default async function Join({ params }: { params: Promise<{ token: string
     <main className="min-h-dvh flex flex-col items-center justify-center px-6 text-center">
       <div className="text-6xl mb-4">🏠</div>
       <h1 className="text-2xl font-bold text-brand-deep mb-3">{APP_NAME}</h1>
-      {expired ? (
+      {dbError ? (
+        <p className="text-muted">系統暫時連不到資料庫,請稍後再試,或跟 Eric 說一聲。</p>
+      ) : expired ? (
         <p className="text-muted">這個邀請連結已經失效了,請再跟 Eric 要一個新的。</p>
       ) : (
         <form action={acceptInvite} className="space-y-4">
